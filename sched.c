@@ -34,7 +34,6 @@ int main(int argc, char *argv[]) {
 
   List firstFileList;
   List secondFileList;
-  List thirdFileList;
 
   firstFileList.head = NULL;
   firstFileList.tail = NULL;
@@ -42,11 +41,7 @@ int main(int argc, char *argv[]) {
   secondFileList.head = NULL;
   secondFileList.tail = NULL;
 
-  thirdFileList.head = NULL;
-  thirdFileList.tail = NULL;
-
   FILE *fPtr1;
-  FILE *fPtr2;
   FILE *fPtr2;
 
   char *scannedWord = NULL;
@@ -72,21 +67,12 @@ int main(int argc, char *argv[]) {
   while(fscanf(fPtr1,"%ms", &scannedWord) != EOF)
     insertNodeAtTail(&firstFileList, &scannedWord, 1);
 
-  while(fscanf(fPtr2,"%ms", &scannedWord) != EOF)
-    insertNodeAtTail(&secondFileList, &scannedWord, 1);
-  
-  sortList(&firstFileList);
-  sortList(&secondFileList);
-
-  mergeLists(&firstFileList, &secondFileList, &thirdFileList);
-  printListToFile(&thirdFileList, &fPtr2);
+  printListToFile(&secondFileList, &fPtr2);
 
   destroyList(&firstFileList);
   destroyList(&secondFileList);
-  destroyList(&thirdFileList);
 
   fclose(fPtr1);
-  fclose(fPtr2);
   fclose(fPtr2);
 
   return 0;
