@@ -17,9 +17,8 @@ typedef struct List {
 } List;
 
 void insertNodeAtTail(List *, char **, int);
-void sortList(List *);
-void swapAdjNodes(List **, Node **, Node **);
-void mergeLists(List *, List*, List *);
+void implementFCFS();
+void implementPP();
 void printList(List *, int);
 void printListToFile(List *, FILE **);
 void destroyList(List *);
@@ -48,7 +47,7 @@ int main(int argc, char *argv[]) {
 
   FILE *fPtr1;
   FILE *fPtr2;
-  FILE *fPtr3;
+  FILE *fPtr2;
 
   char *scannedWord = NULL;
   
@@ -61,18 +60,9 @@ int main(int argc, char *argv[]) {
 
   }
 
-  fPtr2 = fopen(argv[2], "r");
+  fPtr2 = fopen(argv[2], "w+");
 
   if(fPtr2 == NULL) {
-
-    printf("The file %s was not found or could not be open. Please try again!", argv[2]);
-    exit(EXIT_FAILURE);
-
-  }
-
-  fPtr3 = fopen(argv[3], "w+");
-
-  if(fPtr3 == NULL) {
 
     printf("The file %s was not created or could not be open. Please try again!", argv[3]);
     exit(EXIT_FAILURE);
@@ -89,7 +79,7 @@ int main(int argc, char *argv[]) {
   sortList(&secondFileList);
 
   mergeLists(&firstFileList, &secondFileList, &thirdFileList);
-  printListToFile(&thirdFileList, &fPtr3);
+  printListToFile(&thirdFileList, &fPtr2);
 
   destroyList(&firstFileList);
   destroyList(&secondFileList);
@@ -97,7 +87,7 @@ int main(int argc, char *argv[]) {
 
   fclose(fPtr1);
   fclose(fPtr2);
-  fclose(fPtr3);
+  fclose(fPtr2);
 
   return 0;
 }
@@ -153,115 +143,12 @@ void insertNodeAtTail(List *firstFileList, char **scannedWord, int wordCount) {
   free(*scannedWord);
 }
 
-
-
-void sortList(List *unsortedList) {
-
-  Node *marker = NULL;
-  Node *markerPrev = NULL;
-  Node *compareNode = NULL;
-  Node *originalSwap = NULL;
-
-  markerPrev = unsortedList->head;
-  marker = unsortedList->head->next;  
-
-  while(marker != NULL && markerPrev != NULL) {
-
-    if (strcmp(markerPrev->word, marker->word) < 0) {
-
-      marker = marker->next;
-      markerPrev = markerPrev->next;
-
-    } else { 
-
-      swapAdjNodes(&unsortedList, &markerPrev, &marker);
-
-      originalSwap = marker;
-      marker = markerPrev->next;
-      compareNode = originalSwap->prev;
-      
-      while(compareNode != NULL && originalSwap != NULL && (strcmp(compareNode->word, originalSwap->word) > 0)) {
-       
-        swapAdjNodes(&unsortedList, &compareNode, &originalSwap);
-        compareNode = originalSwap->prev;
-      }
-
-      if (marker != NULL)
-        markerPrev = marker->prev;
-
-    }
-  }
+void implementFCFS() {
 
 }
 
-void swapAdjNodes(List **unsortedList, Node **nodeOne, Node **nodeTwo) {
+void implementPP() {
 
-  Node *tempNode = NULL;
-  tempNode = (*nodeOne)->prev;
-
-  if(tempNode != NULL) {
-
-    tempNode->next = (*nodeTwo);
-    (*nodeTwo)->prev = tempNode;
-    (*nodeOne)->next = (*nodeTwo)->next;
-    (*nodeTwo)->next = (*nodeOne);
-
-  } else {
-
-    (*nodeTwo)->prev = tempNode;
-    (*nodeOne)->next = (*nodeTwo)->next;
-    (*nodeTwo)->next = (*nodeOne);
-    (*unsortedList)->head = (*nodeTwo);
-
-  }
-
-  tempNode = (*nodeOne)->next;
-
-  if(tempNode != NULL) {
-
-    tempNode->prev = (*nodeOne);
-    (*nodeOne)->prev = (*nodeTwo);
-
-  } else {
-
-    (*nodeOne)->prev = (*nodeTwo);
-    (*unsortedList)->tail = (*nodeOne);
-
-  }
-
-}
-
-void mergeLists(List *sortedListOne, List *sortedListTwo, List *sortedListThree) {
- 
-  Node *listOneNode = NULL;
-  Node *listTwoNode = NULL;
-  char *tempWord = NULL;
-
-  listOneNode = sortedListOne->head;
-  listTwoNode = sortedListTwo->head;
-  int totalCount = 0;
-
-  while (listOneNode != NULL && listTwoNode != NULL) {
-
-    if(strcmp(listOneNode->word, listTwoNode->word) == 0) {
-
-      tempWord = strndup(listOneNode->word, strlen(listOneNode->word));
-      totalCount = listOneNode->count + listTwoNode->count;
-      insertNodeAtTail(sortedListThree, &tempWord, totalCount);
-
-      listOneNode = listOneNode->next;
-      listTwoNode = listTwoNode->next;
-
-    } else if (strcmp(listOneNode->word, listTwoNode->word) < 0) {
-
-      listOneNode = listOneNode->next;
-
-    } else {
-
-      listTwoNode = listTwoNode->next;
-
-    }
-  }
 }
 
 void printList(List *list, int reverse) {
