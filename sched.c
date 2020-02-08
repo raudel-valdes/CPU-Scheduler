@@ -2,6 +2,7 @@
 IMPORTANT QUESTIONS:
 
 1) Do we need to allocate memory for the integers or only for the nodes?
+  -Do we need to worry about very large numbers? Should we use longs instead of ints?
 */
 
 #include <stdio.h>
@@ -29,23 +30,12 @@ typedef struct List {
 
 void insertNodeAtTail(List *, int, int, int, int);
 void implementFCFS(List *);
-void implementPP(List *);
+void implementPP(List *, long);
 void printList(List *, int);
 void printListToFile(List *, FILE **);
 void destroyList(List *);
 
 int main(int argc, char *argv[]) {
-
-  if (argc != 4) {
-
-    printf("Please include the following files at execution time: \n");
-    printf("\t 1) Input text file name/location. \n");
-    printf("\t 2) Output file to save computed results. \n");
-    printf("\t 3) Desire algorithm. \n");
-    printf("\t 4) Number of processes to compute. (optional) \n");
-    exit(EXIT_FAILURE);
-
-  }
 
   List fileList;
 
@@ -59,6 +49,21 @@ int main(int argc, char *argv[]) {
   int arrvTime = 0;
   int finTime = 0;
   int waitTime = 0;
+  long plimit = 0;
+  int useLimit = 0;
+  long pcounter = 0;
+
+  if (argc < 4 || argc > 5) {
+
+    printf("Please include the following files at execution time: \n");
+    printf("\t 1) Input text file name/location. \n");
+    printf("\t 2) Output file to save computed results. \n");
+    printf("\t 3) Desire algorithm. \n");
+    printf("\t 4) Number of processes to compute. (optional) \n");
+    exit(EXIT_FAILURE);
+
+  }
+
   
   fPtr1 = fopen(argv[1], "r");
 
@@ -78,8 +83,29 @@ int main(int argc, char *argv[]) {
 
   }
 
-  while(fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finTime, &waitTime) != EOF)
+  if(argc == 5) {
+
+    char *ptr;
+    plimit = strtol(argv[4], &ptr, 10);
+
+    if(*ptr != '\0'){
+      printf("Please provide an INTEGER for the limit of processes to execute!");
+      exit(EXIT_FAILURE);
+    }
+
+    useLimit = 1;
+
+  }
+
+  while(fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finTime, &waitTime) != EOF) {
+
+    if(useLimit && pcounter >= plimit)
+      break;
+
+    pcounter++;
     insertNodeAtTail(&fileList, pid, arrvTime, finTime, waitTime);
+
+  }
 
   // if (argv[3] == "FCFS") 
   //   implementFCFS(&fileList);
@@ -132,31 +158,32 @@ void implementFCFS(List *list) {
   Node *traverseNode = NULL;
   int remainingBurst = 0;
   int waitingTime = 0;
-  int counter = 0;
+  int tcounter = 0;
 
   traverseNode = list->head;
 
-  while(traverseNode !=NULL) {
+  while(traverseNode != NULL) {
+
     remainingBurst = traverseNode->remainingBurstTime;
 
     while(remainingBurst > 0) {
       
       remainingBurst--;
-      counter++;
+      tcounter++;
 
     }
 
-    waitingTime = counter - traverseNode->arrvTime - traverseNode->burstTime;
+    waitingTime = tcounter - traverseNode->arrvTime - traverseNode->burstTime;
     traverseNode->waitTime = waitingTime;
     traverseNode->remainingBurstTime = 0;
-    traverseNode->finTime = counter;
+    traverseNode->finTime = tcounter;
 
     traverseNode = traverseNode->next;
   }
 
 }
 
-void implementPP(List *list) {
+void implementPP(List *list, long plimit) {
   
 }
 
