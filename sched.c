@@ -79,11 +79,14 @@ int main(int argc, char *argv[]) {
   }
 
   while(fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finTime, &waitTime) != EOF)
-    insertNodeAtTail(&fileList, &pid, &arrvTime, &finTime, &waitTime);
+    insertNodeAtTail(&fileList, pid, arrvTime, finTime, waitTime);
 
-  if (argv[3] == "FCFS") 
-    implementFCFS(&fileList);
-  else implementPP(&fileList);
+  // if (argv[3] == "FCFS") 
+  //   implementFCFS(&fileList);
+  // else implementPP(&fileList);
+
+  implementFCFS(&fileList);
+  printListToFile(&fileList, &fPtr2);
 
   destroyList(&fileList);
 
@@ -105,10 +108,10 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
   nextTailNode->finTime = 0;
   nextTailNode->waitTime = 0;
 
-  Node *currentNode = fileList->head;
+  Node *currentHeadNode = fileList->head;
   Node *currentTailNode = fileList->tail;
 
-  if (currentNode == NULL) {
+  if (currentHeadNode == NULL) {
 
     nextTailNode->prev = NULL;
     nextTailNode->next = NULL;
@@ -120,16 +123,41 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
     currentTailNode->next = nextTailNode;
     nextTailNode->prev = currentTailNode;
     nextTailNode->next = NULL;
-    currentTailNode = currentNode;    
+    fileList->tail = nextTailNode;    
   }
 }
 
 void implementFCFS(List *list) {
 
+  Node *traverseNode = NULL;
+  int remainingBurst = 0;
+  int waitingTime = 0;
+  int counter = 0;
+
+  traverseNode = list->head;
+
+  while(traverseNode !=NULL) {
+    remainingBurst = traverseNode->remainingBurstTime;
+
+    while(remainingBurst > 0) {
+      
+      remainingBurst--;
+      counter++;
+
+    }
+
+    waitingTime = counter - traverseNode->arrvTime - traverseNode->burstTime;
+    traverseNode->waitTime = waitingTime;
+    traverseNode->remainingBurstTime = 0;
+    traverseNode->finTime = counter;
+
+    traverseNode = traverseNode->next;
+  }
+
 }
 
 void implementPP(List *list) {
-
+  
 }
 
 void printList(List *list, int reverse) {
@@ -141,7 +169,7 @@ void printList(List *list, int reverse) {
     
     while (traverseNode != NULL) {
 
-      printf("%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
+      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finTime, traverseNode->waitTime);
       traverseNode = traverseNode->next;
 
     }
@@ -152,7 +180,7 @@ void printList(List *list, int reverse) {
     
     while (traverseNode != NULL) {
 
-      printf("%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
+      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finTime, traverseNode->waitTime);
       traverseNode = traverseNode->prev;
 
     }
