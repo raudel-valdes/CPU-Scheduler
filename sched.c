@@ -1,3 +1,9 @@
+/*
+IMPORTANT QUESTIONS:
+
+1) Do we need to allocate memory for the integers or only for the nodes?
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -5,8 +11,13 @@
 
 
 typedef struct Node{
-  char *word;
-  int count;
+  int pid;
+  int arrvTime;
+  int burstTime;
+  int remainingBurstTime;
+  int priority;
+  int finTime;
+  int waitTime;
   struct Node *next;
   struct Node *prev;
 } Node;
@@ -16,9 +27,9 @@ typedef struct List {
   Node *tail;
 } List;
 
-void insertNodeAtTail(List *, char **, int);
-void implementFCFS();
-void implementPP();
+void insertNodeAtTail(List *, int, int, int, int);
+void implementFCFS(List *);
+void implementPP(List *);
 void printList(List *, int);
 void printListToFile(List *, FILE **);
 void destroyList(List *);
@@ -27,24 +38,27 @@ int main(int argc, char *argv[]) {
 
   if (argc != 4) {
 
-    printf("Please include the two input text file names and the output file name at execution time! \n");
+    printf("Please include the following files at execution time: \n");
+    printf("\t 1) Input text file name/location. \n");
+    printf("\t 2) Output file to save computed results. \n");
+    printf("\t 3) Desire algorithm. \n");
+    printf("\t 4) Number of processes to compute. (optional) \n");
     exit(EXIT_FAILURE);
 
   }
 
-  List firstFileList;
-  List secondFileList;
+  List fileList;
 
-  firstFileList.head = NULL;
-  firstFileList.tail = NULL;
-
-  secondFileList.head = NULL;
-  secondFileList.tail = NULL;
+  fileList.head = NULL;
+  fileList.tail = NULL;
 
   FILE *fPtr1;
   FILE *fPtr2;
 
-  char *scannedWord = NULL;
+  int pid = 0;
+  int arrvTime = 0;
+  int finTime = 0;
+  int waitTime = 0;
   
   fPtr1 = fopen(argv[1], "r");
 
@@ -64,13 +78,14 @@ int main(int argc, char *argv[]) {
 
   }
 
-  while(fscanf(fPtr1,"%ms", &scannedWord) != EOF)
-    insertNodeAtTail(&firstFileList, &scannedWord, 1);
+  while(fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finTime, &waitTime) != EOF)
+    insertNodeAtTail(&fileList, &pid, &arrvTime, &finTime, &waitTime);
 
-  printListToFile(&secondFileList, &fPtr2);
+  if (argv[3] == "FCFS") 
+    implementFCFS(&fileList);
+  else implementPP(&fileList);
 
-  destroyList(&firstFileList);
-  destroyList(&secondFileList);
+  destroyList(&fileList);
 
   fclose(fPtr1);
   fclose(fPtr2);
@@ -78,87 +93,67 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void insertNodeAtTail(List *firstFileList, char **scannedWord, int wordCount) {
+void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int priority) {
 
-  char *wordToInsert = strndup(*scannedWord, strlen(*scannedWord));
   Node *nextTailNode = malloc(sizeof(Node));
 
-  nextTailNode->word = wordToInsert;
-  nextTailNode->count = wordCount;
+  nextTailNode->pid = pid;
+  nextTailNode->arrvTime = arrvTime;
+  nextTailNode->burstTime = burstTime;
+  nextTailNode->remainingBurstTime = burstTime;
+  nextTailNode->priority = priority;
+  nextTailNode->finTime = 0;
+  nextTailNode->waitTime = 0;
 
-  Node *currentNode = firstFileList->head;
-  Node *currentTailNode = firstFileList->tail;
+  Node *currentNode = fileList->head;
+  Node *currentTailNode = fileList->tail;
 
   if (currentNode == NULL) {
 
     nextTailNode->prev = NULL;
     nextTailNode->next = NULL;
 
-    firstFileList->head = nextTailNode;
-    firstFileList->tail = nextTailNode;
+    fileList->head = nextTailNode;
+    fileList->tail = nextTailNode;
 
   } else {
- 
-    while(currentNode != NULL) {
-      
-      if (strcmp(currentNode->word, wordToInsert) == 0) {
-
-        currentNode->count++;
-
-        free(nextTailNode->word);
-        free(nextTailNode);
-
-        break;
-        
-      } else 
-        currentNode = currentNode->next;
-
-      if (currentNode == NULL) {
-
-        nextTailNode->prev = currentTailNode;
-        nextTailNode->next = NULL;
-        currentTailNode->next = nextTailNode;
-        firstFileList->tail = nextTailNode;
-
-      }
-
-    }
-  
+    currentTailNode->next = nextTailNode;
+    nextTailNode->prev = currentTailNode;
+    nextTailNode->next = NULL;
+    currentTailNode = currentNode;    
   }
-
-  free(*scannedWord);
 }
 
-void implementFCFS() {
+void implementFCFS(List *list) {
 
 }
 
-void implementPP() {
+void implementPP(List *list) {
 
 }
 
 void printList(List *list, int reverse) {
 
-  Node *currentNode = NULL;
+  Node *traverseNode = NULL;
 
   if (!reverse) {
-    currentNode = list->head;
+    traverseNode = list->head;
     
-    while (currentNode != NULL) {
+    while (traverseNode != NULL) {
 
-      printf("%s,%d\n", currentNode->word, currentNode->count);
-      currentNode = currentNode->next;
+      printf("%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
+      traverseNode = traverseNode->next;
 
     }
 
   } else {
     
-    currentNode = list->tail;
+    traverseNode = list->tail;
     
-    while (currentNode != NULL) {
+    while (traverseNode != NULL) {
 
-      printf("%s,%d\n", currentNode->word, currentNode->count);
-      currentNode = currentNode->prev;
+      printf("%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
+      traverseNode = traverseNode->prev;
 
     }
 
@@ -173,7 +168,7 @@ void printListToFile(List *listToPrint, FILE **filePtr) {
 
   while(traverseNode != NULL) {
 
-    fprintf((*filePtr), "%s,%d\n", traverseNode->word, traverseNode->count);
+    fprintf((*filePtr), "%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
     traverseNode = traverseNode->next;
 
   }
@@ -189,8 +184,6 @@ void destroyList(List *listToDestroy) {
   while(nodeToDestroy != NULL) {
 
     tempNode = nodeToDestroy->next;
-
-    free(nodeToDestroy->word);
     free(nodeToDestroy);
 
     nodeToDestroy = tempNode;
