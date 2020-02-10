@@ -6,7 +6,7 @@ IMPORTANT QUESTIONS:
 
 2) If there is a tie for PP, then FCFS’s rule will be used to break the tie.
 
-3) Are prioritie values unique?
+3) Are prioritie values unique? ANSWER: They are not unique!
 */
 
 #include <stdio.h>
@@ -127,15 +127,17 @@ int main(int argc, char *argv[]) {
 
   }
 
-  // if (argv[3] == "FCFS") {
-  //  implementFCFS(&fileList);
-  //  printListToFile(&fileList, &fPtr2);
-  // }
-  // else {
+  if (strcmp(argv[3], "FCFS") == 0) {
+
+   implementFCFS(&fileList);
+   printListToFile(&fileList, &fPtr2);
+   
+  } else {
+
     implementPP(&fileList, &readyList, &finishedPPList);
     printPPListToFile(&finishedPPList, &fPtr2);
-  //} 
 
+  } 
 
   destroyList(&fileList);
 
@@ -275,7 +277,7 @@ Node *removeReadyNodeFromTail(List **list) {
   Node * prevNode =  NULL;
   
   if (nodeToRemove != NULL) {
-    
+
     prevNode = nodeToRemove->readyPrev;
     nodeToRemove->readyPrev = NULL;
 
@@ -341,6 +343,9 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
       if (nextpArrvt == tcounter) {
 
+        if(pArrv == NULL)
+          break;
+
         if (pArrv->priority < processingNode->priority) {
           
           processingNode->remainingBurstTime = remainingBurst;
@@ -372,11 +377,13 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
     insertFinishedPPNodeAtTail(&finishedPPList, &processingNode);
     readyTail = readyList->tail;
 
-    if (tcounter == nextpArrvt) {
+    if (tcounter == nextpArrvt && pArrv != NULL) {
 
       processingNode = pArrv;
       pArrv = pArrv->next;
-      nextpArrvt = pArrv->arrvTime;
+
+      if(pArrv != NULL)
+        nextpArrvt = pArrv->arrvTime;
       
       if (readyTail != NULL && readyTail->priority < processingNode->priority) {
 
