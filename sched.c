@@ -5,6 +5,8 @@ IMPORTANT QUESTIONS:
   -Do we need to worry about very large numbers? Should we use longs instead of ints?
 
 2) If there is a tie for PP, then FCFS’s rule will be used to break the tie.
+
+3) Are prioritie values unique?
 */
 
 #include <stdio.h>
@@ -19,12 +21,14 @@ typedef struct Node{
   int burstTime;
   int remainingBurstTime;
   int priority;
-  int finTime;
+  int finishedTime;
   int waitTime;
   struct Node *next;
   struct Node *prev;
   struct Node *readyNext;
   struct Node *readyPrev;  
+  struct Node *finishedNext;
+  struct Node *finishedPrev;
 } Node;
 
 typedef struct List {
@@ -33,29 +37,37 @@ typedef struct List {
 } List;
 
 void insertNodeAtTail(List *, int, int, int, int);
-void insertReadyNodeAtTail(List *, Node **);
-Node * removeReadyNode(List*);
-void sortList(List*, int);
+void insertReadyNodeAtTail(List **, Node **);
+void insertFinishedPPNodeAtTail(List **, Node **);
+Node * removeReadyNodeFromTail(List **);
 void implementFCFS(List *);
-void implementPP(List *);
+void implementPP(List *, List *, List *);
 void printList(List *, int);
 void printListToFile(List *, FILE **);
+void printPPListToFile(List *, FILE **);
 void destroyList(List *);
-
 
 int main(int argc, char *argv[]) {
 
   List fileList;
+  List readyList;
+  List finishedPPList;
 
   fileList.head = NULL;
   fileList.tail = NULL;
+
+  readyList.head = NULL;
+  readyList.tail = NULL;
+
+  finishedPPList.head = NULL;
+  finishedPPList.tail = NULL;
 
   FILE *fPtr1;
   FILE *fPtr2;
 
   int pid = 0;
   int arrvTime = 0;
-  int finTime = 0;
+  int finishedTime = 0;
   int waitTime = 0;
   long plimit = 0;
   int useLimit = 0;
@@ -75,7 +87,7 @@ int main(int argc, char *argv[]) {
   
   fPtr1 = fopen(argv[1], "r");
 
-  if(fPtr1 == NULL) {
+  if (fPtr1 == NULL) {
 
     printf("The file %s was not found or could not be open. Please try again!", argv[1]);
     exit(EXIT_FAILURE);
@@ -84,19 +96,19 @@ int main(int argc, char *argv[]) {
 
   fPtr2 = fopen(argv[2], "w+");
 
-  if(fPtr2 == NULL) {
+  if (fPtr2 == NULL) {
 
     printf("The file %s was not created or could not be open. Please try again!", argv[3]);
     exit(EXIT_FAILURE);
 
   }
 
-  if(argc == 5) {
+  if (argc == 5) {
 
     char *ptr;
     plimit = strtol(argv[4], &ptr, 10);
 
-    if(*ptr != '\0'){
+    if (*ptr != '\0'){
       printf("Please provide an INTEGER for the limit of processes to execute!");
       exit(EXIT_FAILURE);
     }
@@ -105,24 +117,25 @@ int main(int argc, char *argv[]) {
 
   }
 
-  while(fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finTime, &waitTime) != EOF) {
+  while (fscanf(fPtr1,"%i %i %i %i", &pid, &arrvTime, &finishedTime, &waitTime) != EOF) {
 
-    if(useLimit && pcounter >= plimit)
+    if (useLimit && pcounter >= plimit)
       break;
 
     pcounter++;
-    insertNodeAtTail(&fileList, pid, arrvTime, finTime, waitTime);
+    insertNodeAtTail(&fileList, pid, arrvTime, finishedTime, waitTime);
 
   }
 
-  // if (argv[3] == "FCFS") 
+  // if (argv[3] == "FCFS") {
   //  implementFCFS(&fileList);
-  // else{
-    implementPP(&fileList);
-    sortList(&fileList, 0);
+  //  printListToFile(&fileList, &fPtr2);
+  // }
+  // else {
+    implementPP(&fileList, &readyList, &finishedPPList);
+    printPPListToFile(&finishedPPList, &fPtr2);
   //} 
 
-  printListToFile(&fileList, &fPtr2);
 
   destroyList(&fileList);
 
@@ -141,7 +154,7 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
   nextTailNode->burstTime = burstTime;
   nextTailNode->remainingBurstTime = burstTime;
   nextTailNode->priority = priority;
-  nextTailNode->finTime = 0;
+  nextTailNode->finishedTime = 0;
   nextTailNode->waitTime = 0;
 
   Node *currentHeadNode = fileList->head;
@@ -166,79 +179,115 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
 
 }
 
-void insertReadyNodeAtTail(List * list, Node **nextTailNode) {
+void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
 
-  Node *currentHeadNode = list->head;
-  Node *currentTailNode = list->tail;
+  Node *currentHeadNode = (*list)->head;
+  Node *currentTailNode = (*list)->tail;
+  Node *traversingNode = (*list)->head;
 
   if (currentHeadNode == NULL) {
 
     (*nextTailNode)->readyPrev = NULL;
     (*nextTailNode)->readyNext = NULL;
 
-    list->head = nextTailNode;
-    list->tail = nextTailNode;
+    (*list)->head = (*nextTailNode);
+    (*list)->tail = (*nextTailNode);
 
   } else {
 
-    currentTailNode->readyNext = nextTailNode;
-    (*nextTailNode)->readyPrev = currentTailNode;
-    (*nextTailNode)->readyNext = NULL;
-    list->tail = nextTailNode;    
+      while (traversingNode != NULL && (*nextTailNode)->priority < traversingNode->priority) {
 
-  }
+        traversingNode = traversingNode->readyNext;
 
-}
+        //takes care of the case in which there are two different processes in the ready list
+        //and we must decide who gets to go first. In this scenario we choose the process who 
+        //arrived first.
+        if (traversingNode != NULL && traversingNode->priority == (*nextTailNode)->priority) {
 
-Node * removeReadyNode(List *list) {
-  
-  Node * nodeToRemove = list->tail;
-  Node * prevNode =  nodeToRemove->readyPrev;
-  
-  nodeToRemove->readyPrev = NULL;
-  prevNode->readyNext = NULL;
-  list->tail = prevNode;
+          if (traversingNode->arrvTime < (*nextTailNode)->arrvTime) {
+            
+            break;
 
-  return &nodeToRemove; 
+          } else {
 
-}
+            traversingNode = traversingNode->readyNext;
+            break;
 
-void sortList(List *unsortedList, int sortByPriority) {
+          }
 
-  Node *marker = NULL;
-  Node *markerPrev = NULL;
-  Node *compareNode = NULL;
-  Node *originalSwap = NULL;
+        }
 
-  markerPrev = unsortedList->head;
-  marker = unsortedList->head->next;  
-
-  while(marker != NULL && markerPrev != NULL) {
-
-    if (strcmp(markerPrev->word, marker->word) < 0) {
-
-      marker = marker->next;
-      markerPrev = markerPrev->next;
-
-    } else { 
-
-      swapAdjNodes(&unsortedList, &markerPrev, &marker);
-
-      originalSwap = marker;
-      marker = markerPrev->next;
-      compareNode = originalSwap->prev;
+      }
       
-      while(compareNode != NULL && originalSwap != NULL && (strcmp(compareNode->word, originalSwap->word) > 0)) {
-       
-        swapAdjNodes(&unsortedList, &compareNode, &originalSwap);
-        compareNode = originalSwap->prev;
+      if ((*nextTailNode)->priority >= currentHeadNode->priority) {
+
+        currentHeadNode->readyPrev = (*nextTailNode);
+        (*nextTailNode)->readyPrev = NULL;
+        (*nextTailNode)->readyNext = currentHeadNode;
+        (*list)->head = (*nextTailNode);   
+
+      } else if (traversingNode != NULL) {
+
+        traversingNode->readyPrev->readyNext = (*nextTailNode);
+        (*nextTailNode)->readyPrev = traversingNode->readyPrev;
+        (*nextTailNode)->readyNext = traversingNode;
+        traversingNode->readyPrev = (*nextTailNode);
+
+      } else {
+
+        currentTailNode->readyNext = (*nextTailNode);
+        (*nextTailNode)->readyPrev = currentTailNode;
+        (*nextTailNode)->readyNext = NULL;
+        (*list)->tail = (*nextTailNode);   
+
       }
 
-      if (marker != NULL)
-        markerPrev = marker->prev;
-
-    }
   }
+
+}
+
+void insertFinishedPPNodeAtTail(List **list, Node **nextTailNode) {
+
+  Node *currentHeadNode = (*list)->head;
+  Node *currentTailNode = (*list)->tail;
+
+  if (currentHeadNode == NULL) {
+
+    (*nextTailNode)->finishedPrev = NULL;
+    (*nextTailNode)->finishedNext = NULL;
+
+    (*list)->head = (*nextTailNode);
+    (*list)->tail = (*nextTailNode);
+
+  } else {
+
+    currentTailNode->finishedNext = (*nextTailNode);
+    (*nextTailNode)->finishedPrev = currentTailNode;
+    (*nextTailNode)->finishedNext = NULL;
+    (*list)->tail = (*nextTailNode);    
+
+  }
+}
+
+Node *removeReadyNodeFromTail(List **list) {
+  
+  Node * nodeToRemove = (*list)->tail;
+  Node * prevNode =  NULL;
+  
+  if (nodeToRemove != NULL) {
+    
+    prevNode = nodeToRemove->readyPrev;
+    nodeToRemove->readyPrev = NULL;
+
+    if (prevNode != NULL)
+      prevNode->readyNext = NULL;
+    else (*list)->head = NULL;
+
+    (*list)->tail = prevNode;
+
+  }
+
+  return nodeToRemove; 
 
 }
 
@@ -251,11 +300,11 @@ void implementFCFS(List *list) {
 
   traverseNode = list->head;
 
-  while(traverseNode != NULL) {
+  while (traverseNode != NULL) {
 
     remainingBurst = traverseNode->remainingBurstTime;
 
-    while(remainingBurst > 0) {
+    while (remainingBurst > 0) {
       
       remainingBurst--;
       tcounter++;
@@ -265,60 +314,49 @@ void implementFCFS(List *list) {
     waitingTime = tcounter - traverseNode->arrvTime - traverseNode->burstTime;
     traverseNode->waitTime = waitingTime;
     traverseNode->remainingBurstTime = 0;
-    traverseNode->finTime = tcounter;
+    traverseNode->finishedTime = tcounter;
 
-    traverseNode = traverseNode->next;
+    traverseNode = traverseNode->readyNext;
   }
 
 }
 
-void implementPP(List *list) {
+void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
-  Node *processingNode = NULL;
-  Node *pArrv = NULL;
-
-  List *readyList = malloc(sizeof(List));
-  readyList->head = NULL;
-  readyList->tail = NULL;
+  Node *processingNode = fileList->head;
+  Node *pArrv = processingNode->next;
+  Node *readyTail = readyList->tail;
 
   int remainingBurst = 0;
   int tcounter = 0;
   int nextpArrvt = 0;
+  int waitingTime = 0;
 
-  int pid = 0;
-  int arrvTime = 0;
-  int burstTime = 0;
-  int priority = 0;
-
-  processingNode = list->head;
-  pArrv = processingNode->next;
   nextpArrvt = pArrv->arrvTime;
+  remainingBurst = processingNode->burstTime;
 
-  while(processingNode != NULL) {
+  while (processingNode != NULL) {
     
-    while(remainingBurst > 0) {
+    while (remainingBurst > 0) {
 
-      if(nextpArrvt == tcounter) {
+      if (nextpArrvt == tcounter) {
 
-        if(processingNode->priority < pArrv->priority) {
+        if (pArrv->priority < processingNode->priority) {
           
           processingNode->remainingBurstTime = remainingBurst;
 
           insertReadyNodeAtTail(&readyList, &processingNode);
-          sortList(&readyList, 1);
           
           processingNode = pArrv;
           remainingBurst = processingNode->burstTime;
 
-        } else {
-
-          insertReadyNodeAtTail(&readyList, &pArrv);
-          sortList(&readyList, 1);
-
-        }
+        } else insertReadyNodeAtTail(&readyList, &pArrv);
 
         pArrv = pArrv->next;
-        nextpArrvt = pArrv->arrvTime;
+
+        if(pArrv != NULL)
+          nextpArrvt = pArrv->arrvTime;
+
       }
 
       remainingBurst--;
@@ -326,26 +364,34 @@ void implementPP(List *list) {
 
     }
 
-    processingNode = processingNode->next;
-
-    if(processingNode->priority < readyList->tail->priority) {
-
-      pid = processingNode->pid;
-      arrvTime = processingNode->arrvTime;
-      burstTime = processingNode->burstTime;
-      priority = processingNode->priority;
+    processingNode->remainingBurstTime = 0;
+    processingNode->finishedTime = tcounter;
+    waitingTime = tcounter - processingNode->arrvTime - processingNode->burstTime;
+    processingNode->waitTime = waitingTime;
       
-      processingNode = removeReadyNode(&readyList);
+    insertFinishedPPNodeAtTail(&finishedPPList, &processingNode);
+    readyTail = readyList->tail;
 
-    }
+    if (tcounter == nextpArrvt) {
 
-    if(processingNode == NULL && readyList != NULL)
-      processingNode = removeReadyNode(&readyList);
+      processingNode = pArrv;
+      pArrv = pArrv->next;
+      nextpArrvt = pArrv->arrvTime;
+      
+      if (readyTail != NULL && readyTail->priority < processingNode->priority) {
+
+        insertReadyNodeAtTail(&readyList, &processingNode);
+        processingNode = removeReadyNodeFromTail(&readyList);
+
+      }      
+
+    } else processingNode = removeReadyNodeFromTail(&readyList);
+
+    if (processingNode != NULL)
+      remainingBurst = processingNode->remainingBurstTime;
 
   }
 
-  destroyList(&readyList);
-  
 }
 
 void printList(List *list, int reverse) {
@@ -358,7 +404,7 @@ void printList(List *list, int reverse) {
     
     while (traverseNode != NULL) {
 
-      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finTime, traverseNode->waitTime);
+      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finishedTime, traverseNode->waitTime);
       traverseNode = traverseNode->next;
 
     }
@@ -369,7 +415,7 @@ void printList(List *list, int reverse) {
     
     while (traverseNode != NULL) {
 
-      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finTime, traverseNode->waitTime);
+      printf("%i %i %i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->burstTime, traverseNode->priority, traverseNode->finishedTime, traverseNode->waitTime);
       traverseNode = traverseNode->prev;
 
     }
@@ -383,10 +429,23 @@ void printListToFile(List *listToPrint, FILE **filePtr) {
   Node *traverseNode = NULL;
   traverseNode = listToPrint->head;
 
-  while(traverseNode != NULL) {
+  while (traverseNode != NULL) {
 
-    fprintf((*filePtr), "%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finTime, traverseNode->waitTime);
+    fprintf((*filePtr), "%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finishedTime, traverseNode->waitTime);
     traverseNode = traverseNode->next;
+
+  }
+}
+
+void printPPListToFile(List *listToPrint, FILE **filePtr) {
+  
+  Node *traverseNode = NULL;
+  traverseNode = listToPrint->head;
+
+  while (traverseNode != NULL) {
+
+    fprintf((*filePtr), "%i %i %i %i\n", traverseNode->pid, traverseNode->arrvTime, traverseNode->finishedTime, traverseNode->waitTime);
+    traverseNode = traverseNode->finishedNext;
 
   }
 }
@@ -398,7 +457,7 @@ void destroyList(List *listToDestroy) {
 
   nodeToDestroy = listToDestroy->head;
     
-  while(nodeToDestroy != NULL) {
+  while (nodeToDestroy != NULL) {
 
     tempNode = nodeToDestroy->next;
     free(nodeToDestroy);
