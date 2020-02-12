@@ -187,7 +187,7 @@ void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
   Node *currentTailNode = (*list)->tail;
   Node *traversingNode = (*list)->head;
 
-  if (currentHeadNode == NULL) {
+  if (currentHeadNode == NULL && currentTailNode == NULL) {
 
     (*nextTailNode)->readyPrev = NULL;
     (*nextTailNode)->readyNext = NULL;
@@ -197,52 +197,33 @@ void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
 
   } else {
 
-      while (traversingNode != NULL && (*nextTailNode)->priority < traversingNode->priority) {
+    while (traversingNode != NULL && (*nextTailNode)->priority < traversingNode->priority)
+      traversingNode = traversingNode->readyNext;
+    
+    while (traversingNode != NULL && (*nextTailNode)->priority == traversingNode->priority && (*nextTailNode)->arrvTime < currentTailNode->arrvTime)
+      traversingNode = traversingNode->readyNext;
 
-        traversingNode = traversingNode->readyNext;
+    if (traversingNode != NULL) {
 
-        //takes care of the case in which there are two different processes in the ready list
-        //and we must decide who gets to go first. In this scenario we choose the process who 
-        //arrived first.
-        if (traversingNode != NULL && traversingNode->priority == (*nextTailNode)->priority) {
+      (*nextTailNode)->readyNext = traversingNode;
 
-          if (traversingNode->arrvTime < (*nextTailNode)->arrvTime) {
-            
-            break;
-
-          } else {
-
-            traversingNode = traversingNode->readyNext;
-            break;
-
-          }
-
-        }
-
-      }
-      
-      if ((*nextTailNode)->priority >= currentHeadNode->priority) {
-
-        currentHeadNode->readyPrev = (*nextTailNode);
-        (*nextTailNode)->readyPrev = NULL;
-        (*nextTailNode)->readyNext = currentHeadNode;
-        (*list)->head = (*nextTailNode);   
-
-      } else if (traversingNode != NULL) {
-
+      if (traversingNode->readyPrev != NULL) {
         traversingNode->readyPrev->readyNext = (*nextTailNode);
-        (*nextTailNode)->readyPrev = traversingNode->readyPrev;
-        (*nextTailNode)->readyNext = traversingNode;
-        traversingNode->readyPrev = (*nextTailNode);
-
       } else {
-
-        currentTailNode->readyNext = (*nextTailNode);
-        (*nextTailNode)->readyPrev = currentTailNode;
-        (*nextTailNode)->readyNext = NULL;
-        (*list)->tail = (*nextTailNode);   
-
+        (*list)->head = (*nextTailNode);
       }
+
+      (*nextTailNode)->readyPrev = traversingNode->readyPrev;
+      traversingNode->readyPrev = (*nextTailNode);
+
+    } else {
+
+      (*nextTailNode)->readyNext = NULL;
+      currentTailNode->readyNext = (*nextTailNode);
+      (*nextTailNode)->readyPrev = currentTailNode;
+      (*list)->tail = (*nextTailNode);   
+
+    }
 
   }
 
@@ -327,12 +308,12 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
   Node *processingNode = fileList->head;
   Node *pArrv = processingNode->next;
-  Node *readyTail = readyList->tail;
+  Node *tempNode = NULL;
 
   int remainingBurst = 0;
   int tcounter = 0;
   int nextpArrvt = 0;
-  int waitingTime = 0;
+
 
   nextpArrvt = pArrv->arrvTime;
   remainingBurst = processingNode->burstTime;
@@ -343,17 +324,9 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
       if (nextpArrvt == tcounter && pArrv != NULL) {
 
-        // if(pArrv == NULL)
-        //   break;
-
-        if (pArrv->priority == processingNode->priority) {
-          pause();
-        }
-
-        if (pArrv->priority < processingNode->priority) {
+        if (pArrv->priority < processingNode->priority || (pArrv->priority == processingNode->priority && pArrv->arrvTime < processingNode->arrvTime)) {
           
           processingNode->remainingBurstTime = remainingBurst;
-
           insertReadyNodeAtTail(&readyList, &processingNode);
           
           processingNode = pArrv;
@@ -373,33 +346,27 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
     }
 
+    tempNode = processingNode;
     processingNode->remainingBurstTime = 0;
     processingNode->finishedTime = tcounter;
-    waitingTime = tcounter - processingNode->arrvTime - processingNode->burstTime;
-    processingNode->waitTime = waitingTime;
+    processingNode->waitTime = tcounter - processingNode->arrvTime - processingNode->burstTime;
       
     insertFinishedPPNodeAtTail(&finishedPPList, &processingNode);
-    readyTail = readyList->tail;
+      
+    if (readyList->tail != NULL)
+      processingNode = removeReadyNodeFromTail(&readyList);
 
-    if (tcounter == nextpArrvt && pArrv != NULL) {
-
+    if (processingNode != NULL && processingNode->pid == tempNode->pid && pArrv != NULL) {
+      tcounter = nextpArrvt;
       processingNode = pArrv;
       pArrv = pArrv->next;
-
-      if(pArrv != NULL)
-        nextpArrvt = pArrv->arrvTime;
-      
-      if (readyTail != NULL && readyTail->priority < processingNode->priority) {
-
-        insertReadyNodeAtTail(&readyList, &processingNode);
-        processingNode = removeReadyNodeFromTail(&readyList);
-
-      }      
-
-    } else processingNode = removeReadyNodeFromTail(&readyList);
+    }
 
     if (processingNode != NULL)
       remainingBurst = processingNode->remainingBurstTime;
+
+    if(readyList->tail == NULL && pArrv == NULL && processingNode->remainingBurstTime == 0)
+      processingNode = NULL;
 
   }
 

@@ -200,53 +200,27 @@ void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
     while (traversingNode != NULL && (*nextTailNode)->priority < traversingNode->priority)
       traversingNode = traversingNode->readyNext;
     
-    if (traversingNode != NULL && (*nextTailNode)->priority == traversingNode->priority) {
+    while (traversingNode != NULL && (*nextTailNode)->priority == traversingNode->priority && (*nextTailNode)->arrvTime < currentTailNode->arrvTime)
+      traversingNode = traversingNode->readyNext;
 
-      
-     
-     
-     
-     
-      // if (traversingNode->readyNext == NULL && (*nextTailNode)->arrvTime < currentTailNode->arrvTime) {
+    if (traversingNode != NULL) {
 
-      //   (*nextTailNode)->readyNext = traversingNode->readyNext;
-      //   (*nextTailNode)->readyPrev = traversingNode;
-      //   traversingNode->readyNext = (*nextTailNode);  
-
-      // } else if (traversingNode->readyNext != NULL && traversingNode->readyPrev != NULL && (*nextTailNode)->arrvTime < currentTailNode->arrvTime) {
-
-      //   (*nextTailNode)->readyNext = traversingNode->readyNext;
-      //   (*nextTailNode)->readyPrev = traversingNode;
-      //   traversingNode->readyNext->prev = (*nextTailNode);
-      //   traversingNode->readyNext = (*nextTailNode);  
-
-      // } else if (traversingNode->readyPrev == NULL && traversingNode->readyPrev != NULL && (*nextTailNode)->arrvTime > currentTailNode->arrvTime) {
-
-      //   (*nextTailNode)->readyPrev = traversingNode->readyPrev;
-      //   (*nextTailNode)->readyNext = traversingNode;
-      //   traversingNode->readyPrev = (*nextTailNode);
-
-      // } else {
-
-      //   traversingNode->readyPrev->readyNext = (*nextTailNode);
-      //   (*nextTailNode)->readyPrev = traversingNode->readyPrev;
-      //   (*nextTailNode)->readyNext = traversingNode;
-      //   traversingNode->readyPrev = (*nextTailNode);  
-
-      // }
-
-    } else if (traversingNode != NULL) {
-
-      traversingNode->readyPrev->readyNext = (*nextTailNode);
-      (*nextTailNode)->readyPrev = traversingNode->readyPrev;
       (*nextTailNode)->readyNext = traversingNode;
+
+      if (traversingNode->readyPrev != NULL) {
+        traversingNode->readyPrev->readyNext = (*nextTailNode);
+      } else {
+        (*list)->head = (*nextTailNode);
+      }
+
+      (*nextTailNode)->readyPrev = traversingNode->readyPrev;
       traversingNode->readyPrev = (*nextTailNode);
 
     } else {
 
+      (*nextTailNode)->readyNext = NULL;
       currentTailNode->readyNext = (*nextTailNode);
       (*nextTailNode)->readyPrev = currentTailNode;
-      (*nextTailNode)->readyNext = NULL;
       (*list)->tail = (*nextTailNode);   
 
     }
@@ -391,7 +365,7 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
     if (processingNode != NULL)
       remainingBurst = processingNode->remainingBurstTime;
 
-    if(readyList->tail == NULL && pArrv == NULL)
+    if(readyList->tail == NULL && pArrv == NULL && processingNode->remainingBurstTime == 0)
       processingNode = NULL;
 
   }
