@@ -341,10 +341,14 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
     
     while (remainingBurst > 0) {
 
-      if (nextpArrvt == tcounter) {
+      if (nextpArrvt == tcounter && pArrv != NULL) {
 
-        if(pArrv == NULL)
-          break;
+        // if(pArrv == NULL)
+        //   break;
+
+        if (pArrv->priority == processingNode->priority) {
+          pause();
+        }
 
         if (pArrv->priority < processingNode->priority) {
           
