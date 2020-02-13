@@ -155,6 +155,7 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
   nextTailNode->priority = priority;
   nextTailNode->finishedTime = 0;
   nextTailNode->waitTime = 0;
+  nextTailNode->taroundTime = 0;
 
   Node *currentHeadNode = fileList->head;
   Node *currentTailNode = fileList->tail;
