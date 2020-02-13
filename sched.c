@@ -1,14 +1,3 @@
-/*
-IMPORTANT QUESTIONS:
-
-1) Do we need to allocate memory for the integers or only for the nodes?
-  -Do we need to worry about very large numbers? Should we use longs instead of ints?
-
-2) If there is a tie for PP, then FCFS’s rule will be used to break the tie.
-
-3) Are prioritie values unique? ANSWER: They are not unique!
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -23,6 +12,7 @@ typedef struct Node{
   int priority;
   int finishedTime;
   int waitTime;
+  int taroundTime;
   struct Node *next;
   struct Node *prev;
   struct Node *readyNext;
@@ -34,6 +24,7 @@ typedef struct Node{
 typedef struct List {
   Node *head;
   Node *tail;
+  int count;
 } List;
 
 void insertNodeAtTail(List *, int, int, int, int);
@@ -45,6 +36,7 @@ void implementPP(List *, List *, List *);
 void printList(List *, int);
 void printListToFile(List *, FILE **);
 void printPPListToFile(List *, FILE **);
+void calcAvg(List *, char *);
 void destroyList(List *);
 
 int main(int argc, char *argv[]) {
@@ -55,12 +47,15 @@ int main(int argc, char *argv[]) {
 
   fileList.head = NULL;
   fileList.tail = NULL;
+  fileList.count = 0;
 
   readyList.head = NULL;
   readyList.tail = NULL;
+  readyList.count = 0;
 
   finishedPPList.head = NULL;
   finishedPPList.tail = NULL;
+  finishedPPList.count = 0;
 
   FILE *fPtr1;
   FILE *fPtr2;
@@ -139,6 +134,8 @@ int main(int argc, char *argv[]) {
 
   } 
 
+  calcAvg(&fileList, argv[3]);
+
   destroyList(&fileList);
 
   fclose(fPtr1);
@@ -179,21 +176,23 @@ void insertNodeAtTail(List *fileList, int pid, int arrvTime, int burstTime, int 
 
   }
 
+  fileList->count++;
+
 }
 
-void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
+void insertReadyNodeAtTail(List **readyList, Node **nextTailNode) {
 
-  Node *currentHeadNode = (*list)->head;
-  Node *currentTailNode = (*list)->tail;
-  Node *traversingNode = (*list)->head;
+  Node *currentHeadNode = (*readyList)->head;
+  Node *currentTailNode = (*readyList)->tail;
+  Node *traversingNode = (*readyList)->head;
 
   if (currentHeadNode == NULL && currentTailNode == NULL) {
 
     (*nextTailNode)->readyPrev = NULL;
     (*nextTailNode)->readyNext = NULL;
 
-    (*list)->head = (*nextTailNode);
-    (*list)->tail = (*nextTailNode);
+    (*readyList)->head = (*nextTailNode);
+    (*readyList)->tail = (*nextTailNode);
 
   } else {
 
@@ -210,7 +209,7 @@ void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
       if (traversingNode->readyPrev != NULL) {
         traversingNode->readyPrev->readyNext = (*nextTailNode);
       } else {
-        (*list)->head = (*nextTailNode);
+        (*readyList)->head = (*nextTailNode);
       }
 
       (*nextTailNode)->readyPrev = traversingNode->readyPrev;
@@ -221,40 +220,45 @@ void insertReadyNodeAtTail(List **list, Node **nextTailNode) {
       (*nextTailNode)->readyNext = NULL;
       currentTailNode->readyNext = (*nextTailNode);
       (*nextTailNode)->readyPrev = currentTailNode;
-      (*list)->tail = (*nextTailNode);   
+      (*readyList)->tail = (*nextTailNode);   
 
     }
 
   }
 
+  (*readyList)->count++;
+
 }
 
-void insertFinishedPPNodeAtTail(List **list, Node **nextTailNode) {
+void insertFinishedPPNodeAtTail(List **finishedPPList, Node **nextTailNode) {
 
-  Node *currentHeadNode = (*list)->head;
-  Node *currentTailNode = (*list)->tail;
+  Node *currentHeadNode = (*finishedPPList)->head;
+  Node *currentTailNode = (*finishedPPList)->tail;
 
   if (currentHeadNode == NULL) {
 
     (*nextTailNode)->finishedPrev = NULL;
     (*nextTailNode)->finishedNext = NULL;
 
-    (*list)->head = (*nextTailNode);
-    (*list)->tail = (*nextTailNode);
+    (*finishedPPList)->head = (*nextTailNode);
+    (*finishedPPList)->tail = (*nextTailNode);
 
   } else {
 
     currentTailNode->finishedNext = (*nextTailNode);
     (*nextTailNode)->finishedPrev = currentTailNode;
     (*nextTailNode)->finishedNext = NULL;
-    (*list)->tail = (*nextTailNode);    
+    (*finishedPPList)->tail = (*nextTailNode);    
 
   }
+
+  (*finishedPPList)->count++;
+
 }
 
-Node *removeReadyNodeFromTail(List **list) {
+Node *removeReadyNodeFromTail(List **readyList) {
   
-  Node * nodeToRemove = (*list)->tail;
+  Node * nodeToRemove = (*readyList)->tail;
   Node * prevNode =  NULL;
   
   if (nodeToRemove != NULL) {
@@ -264,28 +268,29 @@ Node *removeReadyNodeFromTail(List **list) {
 
     if (prevNode != NULL)
       prevNode->readyNext = NULL;
-    else (*list)->head = NULL;
+    else (*readyList)->head = NULL;
 
-    (*list)->tail = prevNode;
+    (*readyList)->tail = prevNode;
 
   }
+  
+  (*readyList)->count--;
 
   return nodeToRemove; 
 
 }
 
-void implementFCFS(List *list) {
+void implementFCFS(List *fileList) {
 
-  Node *traverseNode = NULL;
+  Node *processingNode = NULL;
   int remainingBurst = 0;
-  int waitingTime = 0;
   int tcounter = 0;
 
-  traverseNode = list->head;
+  processingNode = fileList->head;
 
-  while (traverseNode != NULL) {
+  while (processingNode != NULL) {
 
-    remainingBurst = traverseNode->remainingBurstTime;
+    remainingBurst = processingNode->remainingBurstTime;
 
     while (remainingBurst > 0) {
       
@@ -294,12 +299,14 @@ void implementFCFS(List *list) {
 
     }
 
-    waitingTime = tcounter - traverseNode->arrvTime - traverseNode->burstTime;
-    traverseNode->waitTime = waitingTime;
-    traverseNode->remainingBurstTime = 0;
-    traverseNode->finishedTime = tcounter;
+    processingNode->waitTime = tcounter - processingNode->arrvTime - processingNode->burstTime;
+    processingNode->remainingBurstTime = 0;
+    processingNode->finishedTime = tcounter;
+    processingNode->taroundTime = processingNode->burstTime + processingNode->waitTime;
 
-    traverseNode = traverseNode->next;
+
+    processingNode = processingNode->next;
+    
   }
 
 }
@@ -313,7 +320,6 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
   int remainingBurst = 0;
   int tcounter = 0;
   int nextpArrvt = 0;
-
 
   nextpArrvt = pArrv->arrvTime;
   remainingBurst = processingNode->burstTime;
@@ -336,7 +342,7 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
 
         pArrv = pArrv->next;
 
-        if(pArrv != NULL)
+        if (pArrv != NULL)
           nextpArrvt = pArrv->arrvTime;
 
       }
@@ -350,6 +356,7 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
     processingNode->remainingBurstTime = 0;
     processingNode->finishedTime = tcounter;
     processingNode->waitTime = tcounter - processingNode->arrvTime - processingNode->burstTime;
+    processingNode->taroundTime = processingNode->burstTime + processingNode->waitTime;
       
     insertFinishedPPNodeAtTail(&finishedPPList, &processingNode);
       
@@ -365,7 +372,7 @@ void implementPP(List *fileList, List *readyList, List *finishedPPList) {
     if (processingNode != NULL)
       remainingBurst = processingNode->remainingBurstTime;
 
-    if(readyList->tail == NULL && pArrv == NULL && processingNode->remainingBurstTime == 0)
+    if (readyList->tail == NULL && pArrv == NULL && processingNode->remainingBurstTime == 0)
       processingNode = NULL;
 
   }
@@ -413,6 +420,7 @@ void printListToFile(List *listToPrint, FILE **filePtr) {
     traverseNode = traverseNode->next;
 
   }
+
 }
 
 void printPPListToFile(List *listToPrint, FILE **filePtr) {
@@ -426,6 +434,31 @@ void printPPListToFile(List *listToPrint, FILE **filePtr) {
     traverseNode = traverseNode->finishedNext;
 
   }
+
+}
+
+void calcAvg(List *fileList, char *algo) {
+  Node *traversingNode = fileList->head;
+  float avgWaitingTime = 0.0;
+  float avgTAroundTime = 0.0;
+  int numberProcesses = fileList->count;
+
+  while (traversingNode != NULL) {
+
+    avgWaitingTime = avgWaitingTime + traversingNode->waitTime;
+    avgTAroundTime = avgTAroundTime + traversingNode->taroundTime;
+
+    traversingNode = traversingNode->next;
+
+  }
+
+  avgWaitingTime = avgWaitingTime/numberProcesses;
+  avgTAroundTime = avgTAroundTime/numberProcesses;
+
+  printf("\n\nAlgorithm: %s \n", algo);
+  printf("Number of Processes Executed: %d \n", fileList->count);
+  printf("Average Waiting Time: %f \nAverage Turn Around Time: %f\n\n", avgWaitingTime, avgTAroundTime);
+  
 }
 
 void destroyList(List *listToDestroy) {
@@ -443,4 +476,5 @@ void destroyList(List *listToDestroy) {
     nodeToDestroy = tempNode;
 
   }
+
 }
